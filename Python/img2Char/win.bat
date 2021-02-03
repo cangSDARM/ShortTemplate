@@ -1,4 +1,4 @@
 cd /d %~dp0\..\..
 
-python -m Python.Img2Char.main %*
+python -m Python.img2Char.main %*
 pause
