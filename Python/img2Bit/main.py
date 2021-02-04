@@ -1,21 +1,17 @@
-from PIL import Image, ImageDraw, ImageFont
-from types import SimpleNamespace
+from PIL import Image, ImageDraw
 import sys
 # import numpy as np
-from random import randint
 import time
-from ..path import font_path, dst_path
+from ..path import dst_path
 from ..imgConvert import Convertor, Util
 
-_TYPE_OF_CHARACTER = {"numeral": "numeral", "alpha": "alpha"}
-TYPE_OF_CHARACTER = SimpleNamespace(**_TYPE_OF_CHARACTER)
 
-
-def img2char(convertor: Convertor,
-             font_size=7,
-             type_of_chara=TYPE_OF_CHARACTER.alpha):
+def img2char(
+    convertor: Convertor,
+    sample_step=24,
+):
     '''
-    图片转字符画
+    图片转像素画
     1. 通过对图片特殊点采样取色
     2. 将字符填充至新图
     3. 如果必要去除alpha通道
@@ -28,8 +24,7 @@ def img2char(convertor: Convertor,
     # 读取图片信息
     old_img = Image.open(convertor.old_file[0])
 
-    width = old_img.size[0]
-    height = old_img.size[1]
+    (width, height) = old_img.size
 
     # 读取图片
     pix = old_img.load()
@@ -38,22 +33,16 @@ def img2char(convertor: Convertor,
     new_image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(new_image)
 
-    # 创建绘制对象
-    font = ImageFont.truetype(font=font_path(),
-                              size=font_size,
-                              encoding="unic")
-    (font_width, font_height) = font.getsize(
-        'A') if type_of_chara == TYPE_OF_CHARACTER.alpha else font.getsize('1')
-    table = char_table(type_of_chara)
-
     # 开始绘制
     pix_count = 0
-    table_len = len(table)
     for y in range(height):
         for x in range(width):
-            if x % font_width == 0 and y % font_height == 0:
-                draw.text((x, y), table[randint(0, table_len - 1)], pix[x, y],
-                          font)
+            if x % sample_step == 0 and y % sample_step == 0:
+                left_top = (x, y)
+                right_bottom = (x + sample_step, y + sample_step)
+                draw.rectangle((left_top, right_bottom),
+                               fill=pix[x, y],
+                               width=0)
                 pix_count += 1
 
     # 转化格式
@@ -71,22 +60,15 @@ def img2char(convertor: Convertor,
     print("image saved to : %s" % dst_img_file_path)
 
 
-def char_table(typo='alpha') -> list:
-    if TYPE_OF_CHARACTER.alpha == typo:
-        return list('ABCDEFGHIJKLMNOPRSTUVWXYZabcdefhiklmnorstuvwxz')
-    else:
-        return list('1234567890')
-
-
 def convert(convertor: Convertor):
-    font_size = 0
+    sample = 0
 
     try:
-        font_size = int(input('Font Size [Number]:'))
+        sample = int(input('Sample Step [Number]:'))
     except Exception:
-        font_size = 12
+        sample = 12
 
-    img2char(convertor, font_size)
+    img2char(convertor, sample)
 
 
 if __name__ == "__main__":
