@@ -1,11 +1,14 @@
-from PIL import Image, ImageDraw, ImageFont
-from types import SimpleNamespace
 import sys
+import time
 # import numpy as np
 from random import randint
-import time
-from ..path import font_path, dst_path
+from types import SimpleNamespace
+
+from PIL import Image, ImageDraw, ImageFont
+
 from ..imgConvert import Convertor, Util
+from ..input import rinput
+from ..path import font_path
 
 _TYPE_OF_CHARACTER = {"numeral": "numeral", "alpha": "alpha"}
 TYPE_OF_CHARACTER = SimpleNamespace(**_TYPE_OF_CHARACTER)
@@ -26,7 +29,7 @@ def img2char(convertor: Convertor,
 
     start_time = int(time.time())
     # 读取图片信息
-    old_img = Image.open(convertor.old_file[0])
+    old_img = Image.open(convertor.old_file)
 
     width = old_img.size[0]
     height = old_img.size[1]
@@ -63,7 +66,7 @@ def img2char(convertor: Convertor,
         new_image = Convertor.drop_alpha(old_img, new_image, bg_color)
 
     # 保存
-    dst_img_file_path = dst_path(convertor)
+    dst_img_file_path = convertor.dst_path()
     new_image.save(dst_img_file_path)
 
     print("used time : %d second, pix_count : %d" %
@@ -79,12 +82,7 @@ def char_table(typo='alpha') -> list:
 
 
 def convert(convertor: Convertor):
-    font_size = 0
-
-    try:
-        font_size = int(input('Font Size [Number]:'))
-    except Exception:
-        font_size = 12
+    font_size = int(rinput('Font Size [Number]:', '12'))
 
     img2char(convertor, font_size)
 

@@ -1,28 +1,21 @@
-import sys
 import os
+import re
+import sys
+import time
+
 from PIL import Image, ImageStat
+
+from .input import rinput
+from .path import require_abspath, resolve_path, split
 
 
 class Util:
     @classmethod
-    def require_abspath(cls, p=None, throwexp=True) -> None:
-        '''
-        :param throwexp: if False, return `None`
-
-        Throw a exception if it's not a valid path'''
-        if not throwexp:
-            return None
-
-        if p is None or p.strip() == '':
-            print("it's not a legal path")
-            sys.exit(1)
-
-    @classmethod
     def brightness(cls, im_file) -> int:
         """https://stackoverflow.com/questions/3490727/what-are-some-methods-to-analyze-image-brightness-using-python"""
 
-        manual = input(
-            'Set brightness manually [white/black]:').strip().lower()
+        manual = rinput(
+            "Set brightness manually [white/black]:", "black").lower()
         if manual == 'white' or manual == 'w':
             return 255
         elif manual == 'black' or manual == 'b':
@@ -42,32 +35,49 @@ class Util:
 
 
 class Convertor:
-    def __init__(self):
+    def __init__(self) -> None:
         self.set_newfile()
 
-    def set_oldfile(self, abs_path=None) -> None:
+    def set_oldfile(self, abs_path: str = None) -> None:
         '''
-        set `self.old_file` = `(abs_path, dir_path, file_name, ext)`'''
+        set `self.old_file` = `abs_path`'''
 
-        Util.require_abspath(abs_path)
-
-        (dir_path, tfile) = os.path.split(abs_path)
-        (file_name, ext) = os.path.splitext(tfile)
-
-        if not ext:
-            print("this file cannot be converted. require a valid extention")
-            sys.exit(1)
-
-        self.old_file = (abs_path, dir_path, file_name, ext)
+        self.old_file = abs_path
 
     def set_newfile(self) -> None:
         '''
-        set `self.new_file` = `(abs_path)`'''
+        set `self.new_file` = `(abs_path)`
 
-        abs_path = input('NewPath [AbsPath Required]:')
-        Util.require_abspath(abs_path, False)
+        Supported:
+        1. abs_path(include file_name or not)
+        2. relative path(based on ..Python)
+        '''
 
-        self.new_file = (abs_path)
+        abs_path = rinput('Save to:')
+
+        abs_path = resolve_path(abs_path)
+
+        self.new_file = abs_path
+
+    def dst_path(self) -> str:
+        (dir_path, file_name, ext) = split(self.old_file)
+        abs_path = self.new_file
+
+        if not abs_path or abs_path.isspace():
+            return "{abs}{sep}{name}{time}{ext}".format(
+                abs=os.path.abspath(dir_path),
+                name=file_name,
+                sep=os.path.sep,
+                time=time.strftime(".%Y-%m-%d_%H-%M-%S", time.localtime()),
+                ext=ext)
+        else:
+            abs_path = require_abspath(abs_path)
+            (dir_path, file_sp, _) = split(abs_path)
+            return "{abs}{sep}{name}{ext}".format(
+                abs=os.path.abspath(dir_path),
+                name=file_sp if file_sp != '' else file_name,
+                sep=os.path.sep,
+                ext=ext)
 
     @classmethod
     def drop_alpha(cls, old_img, new_img,
@@ -97,10 +107,25 @@ def convert() -> None:
 
     convertor = Convertor()
     convertor.set_oldfile(sys.argv[1])
-    img2Char.convert(convertor)
+
+    action = rinput("""
+Choose a type u want to converted[Number]
+
+0; to character
+1; to bit
+""", '0')
+    action = int(action, base=10)
+
+    if action == 0:
+        print('-----------To Character-----------')
+        img2Char.convert(convertor)
+    else:
+        print('-----------To Bit-----------')
+        img2Bit.convert(convertor)
 
 
 if __name__ == "__main__":
+    from .img2Bit import main as img2Bit
     from .img2Char import main as img2Char
 
     convert()

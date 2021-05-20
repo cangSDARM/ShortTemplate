@@ -1,9 +1,11 @@
-from PIL import Image, ImageDraw
 import sys
 # import numpy as np
 import time
-from ..path import dst_path
+
+from PIL import Image, ImageDraw
+
 from ..imgConvert import Convertor, Util
+from ..input import rinput
 
 
 def img2char(
@@ -22,7 +24,7 @@ def img2char(
 
     start_time = int(time.time())
     # 读取图片信息
-    old_img = Image.open(convertor.old_file[0])
+    old_img = Image.open(convertor.old_file)
 
     (width, height) = old_img.size
 
@@ -52,7 +54,7 @@ def img2char(
         new_image = Convertor.drop_alpha(old_img, new_image, bg_color)
 
     # 保存
-    dst_img_file_path = dst_path(convertor)
+    dst_img_file_path = convertor.dst_path()
     new_image.save(dst_img_file_path)
 
     print("used time : %d second, pix_count : %d" %
@@ -61,12 +63,7 @@ def img2char(
 
 
 def convert(convertor: Convertor):
-    sample = 0
-
-    try:
-        sample = int(input('Sample Step [Number]:'))
-    except Exception:
-        sample = 12
+    sample = int(rinput('Sample Step [Number]:', '12'))
 
     img2char(convertor, sample)
 
