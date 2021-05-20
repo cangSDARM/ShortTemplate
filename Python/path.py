@@ -6,7 +6,7 @@ def resolve_path(path: str = '') -> str:
     """
     Resolve path from ShortTemplate to Python
     """
-    if os.path.isabs(path):
+    if not path or os.path.isabs(path):
         return path
 
     # dont change workdir in anyway
