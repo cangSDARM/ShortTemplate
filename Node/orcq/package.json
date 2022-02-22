@@ -60,6 +60,6 @@
     "cheerio": "^1.0.0-rc.9",
     "form-data": "^4.0.0",
     "https-proxy-agent": "^5.0.0",
-    "oicq": "^1.17.2"
+    "oicq": "~1.21.2"
   }
 }
