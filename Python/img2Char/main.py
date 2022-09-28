@@ -14,7 +14,7 @@ _TYPE_OF_CHARACTER = {"numeral": "numeral", "alpha": "alpha"}
 TYPE_OF_CHARACTER = SimpleNamespace(**_TYPE_OF_CHARACTER)
 
 
-def img2char(convertor: Convertor, font_size=7, type_of_chara=TYPE_OF_CHARACTER.alpha):
+def img2char(convertor: Convertor, font_size: int=7, type_of_chara=TYPE_OF_CHARACTER.alpha):
   '''
     图片转字符画
     1. 通过对图片特殊点采样取色

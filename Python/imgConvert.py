@@ -12,7 +12,7 @@ from .path import require_abspath, resolve_path, split
 class Util:
 
   @classmethod
-  def brightness(cls, im_file) -> int:
+  def brightness(cls, im_file: Image.Image) -> int:
     """https://stackoverflow.com/questions/3490727/what-are-some-methods-to-analyze-image-brightness-using-python"""
 
     manual = rinput("Set brightness manually [white/black]:", "black").lower()
@@ -78,7 +78,7 @@ class Convertor:
           abs=os.path.abspath(dir_path), name=file_sp if file_sp != '' else file_name, sep=os.path.sep, ext=ext)
 
   @classmethod
-  def drop_alpha(cls, old_img, new_img, bg_color=(255, 255, 255)) -> Image.Image:
+  def drop_alpha(cls, old_img: Image.Image, new_img: Image.Image, bg_color=(255, 255, 255)) -> Image.Image:
     '''
         :param new_img: if it's `None`, assume to new_img==old_img
         :param bg_color: used to replace empty alpha
