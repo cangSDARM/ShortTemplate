@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const assert = require("assert/strict");
 const fsRead = (...args) =>
   new Promise((resolve, reject) =>
     fs.read(...args, (err, bytesRead, buffer) => {
@@ -7,20 +8,6 @@ const fsRead = (...args) =>
       else resolve(bytesRead, buffer);
     })
   );
-
-async function open(fileName, openFlags, cacheSize, pageSize) {
-  cacheSize = cacheSize || 4096 * 64;
-  if (
-    typeof openFlags !== "number" &&
-    ["w+", "wx+", "r", "ax+", "a+"].indexOf(openFlags) < 0
-  )
-    throw new Error("Invalid open option");
-  const fd = await fs.promises.open(path.resolve(fileName), openFlags);
-
-  const stats = await fd.stat();
-
-  return new BinaryFile(fd, stats, pageSize);
-}
 
 class BinaryFile {
   /**
@@ -37,6 +24,23 @@ class BinaryFile {
     this.totalSize = stats.size;
     this.readWatermark = 1024 ** 2; // 1mb
     this.readLimit = 1024 ** 4; // 1g
+
+    const nodeVer = process.versions.node.split(",");
+    this.streamable = parseInt(nodeVer[0], 10) >= 16;
+  }
+
+  static async open(fileName, openFlags, cacheSize, pageSize) {
+    cacheSize = cacheSize || 4096 * 64;
+    if (
+      typeof openFlags !== "number" &&
+      ["w+", "wx+", "r", "ax+", "a+"].indexOf(openFlags) < 0
+    )
+      throw new Error("Invalid open option");
+    const fd = await fs.promises.open(path.resolve(fileName), openFlags);
+
+    const stats = await fd.stat();
+
+    return new BinaryFile(fd, stats, pageSize);
   }
 
   /**
@@ -128,14 +132,20 @@ class BinaryFile {
    * @returns {Promise<Buffer | Buffer[]>} return `Buffer[]` if `len > pageSize` else `Buffer`
    */
   async read(pos, len) {
-    if (len > this.readLimit)
-      throw `You should not use 'read' to read more than 1g of data in one go. It's recommended to handle 'perBlock' or 'perPage' by yourself.`;
+    assert.ok(
+      len <= this.readLimit,
+      `You should not use 'read' to read more than 1g of data in one go.
+      It's recommended to handle 'perBlock' or 'perPage' by yourself.`
+    );
 
     const waterOverflow = len > this.readWatermark;
+
     const buffers = [];
-    const iter = waterOverflow
-      ? this.readPerBlock(pos, len)
-      : this.readPerPage(pos, len, Math.min(this.pageSize, len));
+    const iter =
+      waterOverflow && this.streamable
+        ? this.readPerBlock(pos, len)
+        : this.readPerPage(pos, len, Math.min(this.pageSize, len));
+
     let data = await iter.next();
     while (!data.done) {
       if (data.value) buffers.push(data.value);
@@ -148,8 +158,7 @@ class BinaryFile {
         0,
         len
       );
-    }
-    if (blockLens < len) {
+    } else if (blockLens < len) {
       console.warn(
         "Not enough length to read. Reading Length:",
         blockLens,
@@ -171,7 +180,7 @@ async function main() {
     cacheSize: 1 << 16,
     pageSize: 1 << 13,
   };
-  const o = await open(
+  const o = await BinaryFile.open(
     file.filePath,
     "r",
     // O_TRUNC | O_CREAT | O_RDWR,
@@ -179,7 +188,8 @@ async function main() {
     file.pageSize
   );
   const ret = await o.read(0, 0xf);
-  console.log(ret, "\n" + ret.toString("ascii"));
+  console.log(ret);
+  console.log(ret.toString("ascii"));
 }
 
 main();
