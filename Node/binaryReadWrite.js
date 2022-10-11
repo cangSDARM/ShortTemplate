@@ -105,6 +105,8 @@ class BinaryFile {
     if (pos > this.totalSize || len <= 0 || pageSize <= 0)
       return Buffer.alloc(0);
 
+    pageSize = Math.min(len, pageSize);
+
     const totalPages = Math.ceil(
       Math.min(len, this.totalSize - pos) / pageSize
     );
@@ -197,7 +199,7 @@ class BinaryFile {
     const iter =
       waterOverflow && this.streamable
         ? this.readPerBlock(pos, len)
-        : this.readPerPage(pos, len, Math.min(this.pageSize, len));
+        : this.readPerPage(pos, len, this.pageSize);
 
     let data = await iter.next();
     while (!data.done) {
@@ -229,15 +231,15 @@ async function main() {
   const pageSize = 1 << 13;
   const ri = b.readPerPage(0, Infinity, pageSize);
 
-  let data = await ri.next(),
+  let rd = await ri.next(),
     times = 0;
-  while (!data.done) {
-    let wi = await o.writePerPage(pageSize * times, data.value, pageSize),
+  while (!rd.done) {
+    let wi = await o.writePerPage(pageSize * times, rd.value, pageSize),
       wd = await wi.next();
     while (!wd.done) {
       wd = await wi.next();
     }
-    data = await ri.next();
+    rd = await ri.next();
     times++;
   }
 
