@@ -5,7 +5,14 @@ const fsRead = (...args) =>
   new Promise((resolve, reject) =>
     fs.read(...args, (err, bytesRead, buffer) => {
       if (err) reject(err);
-      else resolve(bytesRead, buffer);
+      else resolve({ bytesRead, buffer });
+    })
+  );
+const fsWrite = (...args) =>
+  new Promise((resolve, reject) =>
+    fs.write(...args, (err, bytesWritten, buffer) => {
+      if (err) reject(err);
+      else resolve({ bytesWritten, buffer });
     })
   );
 
@@ -29,7 +36,12 @@ class BinaryFile {
     this.streamable = parseInt(nodeVer[0], 10) >= 16;
   }
 
-  static async open(fileName, openFlags, cacheSize, pageSize) {
+  static async open(
+    fileName,
+    openFlags,
+    cacheSize = 1 << 8,
+    pageSize = 1 << 8
+  ) {
     cacheSize = cacheSize || 4096 * 64;
     if (
       typeof openFlags !== "number" &&
@@ -45,9 +57,46 @@ class BinaryFile {
 
   /**
    * TODO:
-   * 1. write
+   * 1. writePerBlock
    * 2. error handler
    */
+
+  /**
+   * @param {String|Buffer|Array<number>} data
+   */
+  async *writePerPage(pos, data, pageSize) {
+    const len = data?.length || -1;
+    if (len <= 0 || pageSize <= 0) return;
+    pageSize = Math.min(len, pageSize);
+
+    const totalPages = Math.ceil(len / pageSize);
+
+    let curPage = 0,
+      curData = undefined,
+      curBuffer = undefined;
+    while (curPage < totalPages) {
+      curData = data[data instanceof Buffer ? "subarray" : "slice"](
+        curPage * pageSize,
+        (curPage + 1) * pageSize
+      );
+      curBuffer = curData instanceof Buffer ? curData : Buffer.from(curData);
+      const { bytesWritten } = await fsWrite(
+        this.fd.fd,
+        curBuffer,
+        0,
+        curBuffer.length,
+        curPage * pageSize + pos
+      );
+      if (bytesWritten <= 0) {
+        break;
+      }
+      yield curData;
+
+      curPage++;
+    }
+
+    return curData;
+  }
 
   /**
    * TODO: Handle errors
@@ -73,6 +122,10 @@ class BinaryFile {
       );
       if (bytesRead <= 0) {
         break;
+      }
+
+      if (curPage === totalPages - 1) {
+        curBuffer = curBuffer.subarray(0, bytesRead);
       }
 
       yield curBuffer;
@@ -153,12 +206,7 @@ class BinaryFile {
     }
 
     const blockLens = buffers.reduce((pre, cur) => pre + cur.length, 0);
-    if (blockLens > len) {
-      buffers[buffers.length - 1] = buffers[buffers.length - 1].subarray(
-        0,
-        len
-      );
-    } else if (blockLens < len) {
+    if (blockLens < len) {
       console.warn(
         "Not enough length to read. Reading Length:",
         blockLens,
@@ -175,21 +223,27 @@ class BinaryFile {
 }
 
 async function main() {
-  const file = {
-    filePath: "./orcq/LICENSE",
-    cacheSize: 1 << 16,
-    pageSize: 1 << 13,
-  };
-  const o = await BinaryFile.open(
-    file.filePath,
-    "r",
-    // O_TRUNC | O_CREAT | O_RDWR,
-    file.cacheSize,
-    file.pageSize
-  );
-  const ret = await o.read(0, 0xf);
-  console.log(ret);
-  console.log(ret.toString("ascii"));
+  const b = await BinaryFile.open("../screenshots/2bit.jpg", "r");
+  const o = await BinaryFile.open("./writable.jpg", "w+");
+
+  const pageSize = 1 << 13;
+  const ri = b.readPerPage(0, Infinity, pageSize);
+
+  let data = await ri.next(),
+    times = 0;
+  while (!data.done) {
+    let wi = await o.writePerPage(pageSize * times, data.value, pageSize),
+      wd = await wi.next();
+    while (!wd.done) {
+      wd = await wi.next();
+    }
+    data = await ri.next();
+    times++;
+  }
+
+  // const ret = await o.read(0, 0xf);
+  // console.log(ret);
+  // console.log(ret.toString("ascii"));
 }
 
 main();
