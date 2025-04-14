@@ -20,11 +20,6 @@ import { prepare } from './db';
 // });
 
 // //监听并输入滑动验证码ticket(同一设备只需验证一次)
-// bot.on('system.login.slider', () => {
-//   process.stdin.once('data', input => {
-//     bot.sliderLogin(input.toString());
-//   });
-// });
 
 // bot.on('system.login.error', e => {
 //   console.error('fatil', e);
@@ -53,7 +48,7 @@ import { prepare } from './db';
 // });
 
 const activedGroup = (data: MessageEventData) => {
-  if ((data as GroupMessageEventData)?.group_id == 99) return true;
+  if ((data as GroupMessageEventData)?.group_id == 535985889) return true;
   if ((data as GroupMessageEventData)?.group_id == 99) return true;
 
   if ((data as PrivateMessageEventData)?.user_id == 99) return true;
@@ -62,12 +57,24 @@ const activedGroup = (data: MessageEventData) => {
 };
 
 const entry = async (leading = '!') => {
-  const uin = 99; //qq
+  const uin = 849614019; //qq
   const bot = createClient(uin, {
     log_level: 'warn', //日志级别设置为debug
     platform: 3, //登录设备选择
   });
-  await bot.login('xx-password');
+
+  bot.on('system.login.slider', () => {
+    process.stdin.once('data', input => {
+      bot.sliderLogin(input.toString());
+    });
+  });
+  bot
+    .on('system.login.qrcode', function() {
+      process.stdin.once('data', () => {
+        this.login(); //扫码后按回车登录
+      });
+    })
+    .login();
 
   const context = new Context(bot);
 
@@ -76,6 +83,8 @@ const entry = async (leading = '!') => {
 
     if (!activedGroup(data)) return;
     if (!message.startsWith(leading)) return;
+
+    console.log('recived data: ', data);
 
     const source = Object.assign(data, {
       raw_message: message.replace(leading, ''),

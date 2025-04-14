@@ -13,11 +13,13 @@ const helper: { [key in string]: string } = {
   epic: `!epic free\nfind out what games epic is sending today`,
   cats: `!cats meme\nget the latest meme of cats on reddit\n!cats fat\nget the fatest cat on reddit :)`,
 };
+const reg = new RegExp(
+  `^help(?:(?:\\s+(${Object.keys(helper).join('|')}))|\\s*)`,
+  'iu'
+);
 
 const help: Handler = async ({ recv, resp }) => {
-  const march = recv.message.match(
-    /^help(?:(?:\s+(coc\s*rd|mtg_search|steam|sgl|epic))|\s*)/iu
-  );
+  const march = recv.message.match(reg);
 
   if (!march) return false;
 
